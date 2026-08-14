@@ -3,9 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/auth.js';
-
 const router = Router();
-
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -13,10 +11,13 @@ router.post('/login', async (req, res) => {
   }
   const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
   const user = rows[0];
+  console.log('LOGIN DEBUG: user found?', !!user, 'status:', user?.status);
   if (!user || user.status !== 'active') {
+    console.log('LOGIN DEBUG: blocked by status check');
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   const valid = await bcrypt.compare(password, user.password_hash);
+  console.log('LOGIN DEBUG: password valid?', valid);
   if (!valid) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
@@ -30,7 +31,6 @@ router.post('/login', async (req, res) => {
     user: { id: user.id, name: user.name, email: user.email, role: user.role, phone: user.phone },
   });
 });
-
 router.get('/me', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
     'SELECT id, name, email, role, phone, status FROM users WHERE id = $1',
@@ -39,5 +39,4 @@ router.get('/me', requireAuth, async (req, res) => {
   if (!rows[0]) return res.status(404).json({ error: 'User not found' });
   res.json(rows[0]);
 });
-
 export default router;
